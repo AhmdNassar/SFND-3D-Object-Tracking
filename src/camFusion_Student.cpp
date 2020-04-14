@@ -133,7 +133,48 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
 // associate a given bounding box with the keypoints it contains
 void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPoint> &kptsCurr, std::vector<cv::DMatch> &kptMatches)
 {
-    // ...
+    cv::KeyPoint tempKp;
+    vector<cv::DMatch> mtchsBB;
+
+    // find matches for keypoints in BB
+    for (auto it = kptMatches.begin(); it!=kptMatches.end(); ++it)
+    {
+        tempKp = kptsCurr[(*it).trainIdx];
+        if(boundingBox.roi.contains(tempKp.pt))
+            mtchsBB.push_back((*it));
+    }
+
+    /* filtering matches to remove outliers */
+    
+    // compute mean, var and standard deviation of matches distance
+    auto getMean = [](double sum, cv::DMatch m)
+    {
+        return sum+= m.distance;
+    };
+    double mean = std::accumulate(mtchsBB.begin(), mtchsBB.end(), 0.0, getMean) / mtchsBB.size();
+    
+    auto add_square = [mean] (double sum, cv::DMatch m)
+    {
+        auto d = m.distance - mean;
+        return sum + d*d;
+    };
+    double total = std::accumulate(mtchsBB.begin(), mtchsBB.end(), 0.0, add_square);
+    double variance = total/mtchsBB.size();
+    double stdDiv = sqrt(variance); // standard deviation
+
+    // 68% of values within mean +/- standard deviation and 95% within mean +/- 2 * standard-deviation, we will use about 81% of matches
+    double distTh = 1.5 * stdDiv;
+
+    // associate best matches to given BB
+    for (auto it = mtchsBB.begin(); it!=mtchsBB.end(); ++it)
+    {
+        //cout<<"dist= "<<(*it).distance<<endl;
+        if(abs((*it).distance - mean) <= distTh )
+            boundingBox.kptMatches.push_back((*it));
+    }
+
+    /* for test */
+    //cout<<"# Filtered matches "<<mtchsBB.size() - boundingBox.kptMatches.size()<<endl;
 }
 
 
