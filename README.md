@@ -287,7 +287,7 @@ example of errors in Lidar TTC shown below, where first TTC was ~13 s, and it ju
 
 #### 6. FP.6 Performance Evaluation 2
 
-From the brevious project top 3 detector/descriptor has been seletected in terms of their performance on accuracy and speed.
+From the previous <a href="https://github.com/AhmdNassar/SFND-2D-Feature-Tracking">project</a> top 3 detector/descriptor has been seletected in terms of their performance on accuracy and speed.
 <br><br>
 Like Lidar, TTC from camera is not always correct as when get a robust clusterKptMatchesWithROI can get a stable TTC from Camera. if the result get unstable, It's probably the worse keypints matches.
 
