@@ -133,48 +133,48 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
 // associate a given bounding box with the keypoints it contains
 void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPoint> &kptsCurr, std::vector<cv::DMatch> &kptMatches)
 {
-    cv::KeyPoint tempKp;
+    
+    
+    cv::KeyPoint tempCurrKp, tempPrevKp;
     vector<cv::DMatch> mtchsBB;
+    vector<double>eucliadianDis;
 
     // find matches for keypoints in BB
     for (auto it = kptMatches.begin(); it!=kptMatches.end(); ++it)
     {
-        tempKp = kptsCurr[(*it).trainIdx];
-        if(boundingBox.roi.contains(tempKp.pt))
-            mtchsBB.push_back((*it));
-    }
+        tempCurrKp = kptsCurr[(*it).trainIdx];
+        tempPrevKp = kptsPrev[(*it).queryIdx];
 
+        if(boundingBox.roi.contains(tempCurrKp.pt))
+        {
+            mtchsBB.push_back((*it));
+            eucliadianDis.push_back(cv::norm(tempCurrKp.pt-tempPrevKp.pt));
+        }
+    }
+    
     /* filtering matches to remove outliers */
     
-    // compute mean, var and standard deviation of matches distance
-    auto getMean = [](double sum, cv::DMatch m)
-    {
-        return sum+= m.distance;
-    };
-    double mean = std::accumulate(mtchsBB.begin(), mtchsBB.end(), 0.0, getMean) / mtchsBB.size();
-    
-    auto add_square = [mean] (double sum, cv::DMatch m)
-    {
-        auto d = m.distance - mean;
-        return sum + d*d;
-    };
-    double total = std::accumulate(mtchsBB.begin(), mtchsBB.end(), 0.0, add_square);
-    double variance = total/mtchsBB.size();
-    double stdDiv = sqrt(variance); // standard deviation
-
-    // 68% of values within mean +/- standard deviation and 95% within mean +/- 2 * standard-deviation, we will use about 81% of matches
-    double distTh = 1.5 * stdDiv;
+    // compute mean of matches Eucliadian Distance
+    double mean = std::accumulate(eucliadianDis.begin(), eucliadianDis.end(), 0.0) / eucliadianDis.size();
+    double distTh = 1.5 * mean;
 
     // associate best matches to given BB
-    for (auto it = mtchsBB.begin(); it!=mtchsBB.end(); ++it)
+    auto it1= mtchsBB.begin();
+    for (auto it2 = eucliadianDis.begin(); it2!=eucliadianDis.end(); ++it2,++it1)
     {
         //cout<<"dist= "<<(*it).distance<<endl;
-        if(abs((*it).distance - mean) <= distTh )
-            boundingBox.kptMatches.push_back((*it));
+        if((*it2) <  distTh  )
+        {
+            tempCurrKp = kptsCurr[(*it1).trainIdx];
+            boundingBox.kptMatches.push_back((*it1));
+            boundingBox.keypoints.push_back(tempCurrKp);
+        }
     }
 
     /* for test */
     //cout<<"# Filtered matches "<<mtchsBB.size() - boundingBox.kptMatches.size()<<endl;
+
+    
 }
 
 
@@ -208,7 +208,7 @@ void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPo
             if (distPrev > std::numeric_limits<double>::epsilon() && distCurr >= minDist)
             { 
                 // avoid division by zero
-                cout<<"disCurr: "<<distCurr<<" distPrev = "<<distPrev<<endl;
+                //cout<<"disCurr: "<<distCurr<<" distPrev = "<<distPrev<<endl;
                 double distRatio = distCurr / distPrev;
                 distRatios.push_back(distRatio);
             }
